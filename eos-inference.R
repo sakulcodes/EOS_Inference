@@ -1,5 +1,6 @@
 library(LaplacesDemon)
-library(MASS)
+library(MASS) 
+library(ggplot2)
 
 # Generate Data:
 # obs_data <- (mi_obs, ri_obs) ~  {m(p_i_true, theta_true),r(p_i_true, theta_true)} +  true_error
@@ -12,6 +13,8 @@ riley_data <- read.delim("/Users/sakul/Desktop/RESEARCH/PRL_rev/riley/ST_PST/run
 miller_data <- read.table("/Users/sakul/Desktop/RESEARCH/PRL_rev/miller/J0030_3spot_RM.txt", header=FALSE)[sample(1:10000, 12242, replace=TRUE),]
 combined_data <- rbind(na.omit(setNames(riley_data, c("R", "M"))), setNames(miller_data, c("R", "M")))
 observed_M <- combined_data$M ; observed_R <- combined_data$R
+correlation <- cor(observed_M, observed_R); print(correlation)
+plot(observed_R, observed_M, xlab = "Observed Radius", ylab = "Observed Mass")
 obs_cov_mat <- cov(combined_data) #covariance matrix
 
 #generate data:
@@ -135,5 +138,7 @@ for (i in 1:8) {
 }
 
 #Do some more goodness of fit checks:
+
+
 
 
