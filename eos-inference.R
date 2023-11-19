@@ -25,8 +25,8 @@ plot(m_observed, r_observed)
 
 #model 
 # (m_i, r_i)' | p_i, theta, Sigma  ~ N_2( {m(p_i, theta),r(p_i, theta)} , Sigma) 
-#               p_i ~ uniform(pi-prior-data)
-#               theta  ~ Uniform(theta-prior-data) 
+#              theta  ~ Discrete Uniform(theta_1,....,theta_K) 
+#               p_i | theta ~ Discrete Uniform {Pmin(theta),....,Pmax(theta)} independetly for i = 1 to n
 #               Sigma ~ Inverse_Wishart(nu = 2, Psi = diag(2))
 
 #grid for theta 
