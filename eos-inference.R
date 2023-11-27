@@ -34,37 +34,55 @@ plot(r_observed, m_observed, main ="Generated Data")
 #The FORTRAN oracle should solve (M(pi,theta), R(pi, theta)) FOR EVERY COMBINATION in the grid values for theta and p. 
 #Imagine a N by K matrix, N = no. of central densities/central pressure, K = no.of theta 
 
-#loading the oracle matrix:
-max_rows <- 0 ; num_files <- 100 ; base_path <- "/Users/sakul/Desktop/ldmcrust/res_eos_pnm32/eft_pnm32_"
-M_Oracle <- R_Oracle <- list() #Initialize with NAs
+#creating the oracle matrix:
+num_files <- 100  # Assuming you have 100 files
+base_path <- "/Users/sakul/Desktop/ldmcrust/res_eos_pnm32/eft_pnm32_"
+
+# Step 1: Read Data and Create a Unique List of Central Densities
+all_data <- vector("list", num_files)
+for (i in 1:num_files) {
+  file_name <- sprintf("%s%06d_ldm_nsmr.dat", base_path, i)
+  data_eos <- read.table(file_name)[, 1:3]  # Read only the first three columns
+  all_data[[i]] <- data_eos
+}
+
+# Step 2: Extract Unique Central Densities
+unique_densities <- unique(unlist(lapply(all_data, function(x) x[,1])))
+unique_densities <- sort(unique_densities, decreasing = TRUE)
+
+# Step 3: Build the Oracle Matrices for Mass (M_Oracle) and Radius (R_Oracle)
+M_Oracle <- R_Oracle <- matrix(NA, nrow = length(unique_densities), ncol = num_files)
+rownames(M_Oracle) <- rownames(R_Oracle) <- unique_densities
 
 for (i in 1:num_files) {
-  file_name <- sprintf("%s%06d_ldm_nsmr.dat", base_path, i) 
-  data_eos <- read.table(file_name)
-  max_rows <- max(max_rows, nrow(data_eos))
-  M_Oracle[[i]] <- data_eos$V2
-  R_Oracle[[i]] <- data_eos$V3
+  for (j in 1:nrow(all_data[[i]])) {
+    density <- all_data[[i]][j, 1]
+    mass <- all_data[[i]][j, 2]
+    radius <- all_data[[i]][j, 3]
+    row_index <- which(rownames(M_Oracle) == density)
+    M_Oracle[row_index, i] <- mass
+    R_Oracle[row_index, i] <- radius
+  }
 }
-M_Oracle <- do.call(cbind, lapply(M_Oracle, function(x) { length(x) <- max_rows; x }))
-R_Oracle <- do.call(cbind, lapply(R_Oracle, function(x) { length(x) <- max_rows; x }))
+
+M_Oracle ; dim(M_Oracle)
+R_Oracle ; dim(R_Oracle)
+
 
 # -----> Parametric curve visualization 
 plot( R_Oracle[,1], M_Oracle[,1], xlab = "Radius", ylab = "Mass", col = "blue") ; points(R_Oracle[,2], M_Oracle[,2], col = "red")
-points(R_Oracle[,3], M_Oracle[,3], col = "green")  
-
-na_count_M <- sum(is.na(M_Oracle)); na_count_R <- sum(is.na(R_Oracle)) #NA sanity checks - Total Na values across the Oracle Matrix
-dim(M_Oracle) ; M_Oracle[300, 2] #example NA point - use indicator function to account for this.
+points(R_Oracle[,3], M_Oracle[,3], col = "green")
 
 
-#grid for theta 
+#Check what linear combination results in the ({ai},{bi}) grid.
+#grid for theta: #
 prior <- read.table("/Users/sakul/Desktop/ldmcrust/data/eft_pnm32_kfr16_par_all.dat")[, -c(5, 6)]
 grid_theta <- prior ; grid_theta <- grid_theta[1:100,]  
 #for pseudo purposees - taking grid for only the first 100 values as only 100 data points are loaded in the oracle matrix. 
-log_prior_theta = -log(nrow(grid_theta))
 
 
-#WORK ON THIS - IS THE CENTRAL DENSITY REALLY THE FIRST COLUMN? - uses the "/Users/sakul/Desktop/ldmcrust/res_eos_pnm32/eft_pnm32_"
-#I DO NOT THINK THIS IS DONE CORRECTLY - THINK ABOUT IT.
+
+#THE FIRST COLUMN OF nsmr.dat file is the central densities
 
 #grid for central density (nc)
 all_densities <- c()
@@ -73,7 +91,7 @@ for (i in 1:num_files) {
   data_eos <- read.table(file_name)
   all_densities <- c(all_densities, data_eos$V1)
 }
-unique_densities <- sort(unique(all_densities)) ; unique_densities
+unique_densities <- sort(unique(all_densities), decreasing = TRUE) ; unique_densities
 grid_p <- unique_densities ; log_prior_p = -log(length(grid_p))
 
 
@@ -127,7 +145,7 @@ for (iter in 1:nreps) {
   sampled_theta = theta_grid[sampled_row_idx, ]
   theta_store[iter, ] = sampled_theta
   
-  #update sigma 
+  #update sigma: 
   #find residuals based on previously sampled theta and p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == sampled_theta)))
   p_index = which(grid_p == p_val)
