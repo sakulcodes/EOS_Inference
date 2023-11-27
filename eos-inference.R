@@ -74,7 +74,7 @@ plot( R_Oracle[,1], M_Oracle[,1], xlab = "Radius", ylab = "Mass", col = "blue") 
 points(R_Oracle[,3], M_Oracle[,3], col = "green")
 
 
-#Check what linear combination results in the ({ai},{bi}) grid.
+#Check what linear combination results in the ({ai},{bi}) grid. - WORK ON THIS:
 #grid for theta: #
 prior <- read.table("/Users/sakul/Desktop/ldmcrust/data/eft_pnm32_kfr16_par_all.dat")[, -c(5, 6)]
 grid_theta <- prior ; grid_theta <- grid_theta[1:100,]  
@@ -82,7 +82,7 @@ grid_theta <- prior ; grid_theta <- grid_theta[1:100,]
 
 
 
-#THE FIRST COLUMN OF nsmr.dat file is the central densities
+#the firs column of nsmr.dat file is the central densities
 
 #grid for central density (nc)
 all_densities <- c()
@@ -115,13 +115,12 @@ for (iter in 1:nreps) {
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == theta)))
   for (i in 1:n) {
     p_prob_log = mapply(function(p_val) {
-      p_index = which(grid_p == p_val) 
-      indicator = ifelse(is.na(M_Oracle[p_index, theta_idx]), 0, 1)  # Indicator function.
+      indicator = ifelse(is.na(M_Oracle[as.character(p_val), theta_idx]), 0, 1)  # Indicator function.
       if (indicator == 0) {
         return(0)
       } else {
-        expected_m = M_Oracle[p_index, theta_idx]
-        expected_r = R_Oracle[p_index, theta_idx]
+        expected_m = M_Oracle[as.character(p_val), theta_idx]
+        expected_r = R_Oracle[as.character(p_val), theta_idx]
         res = c(m_observed[i] - expected_m, r_observed[i] - expected_r)
         return(-0.5 * res %*% iSigma %*% res)
       }
@@ -131,12 +130,11 @@ for (iter in 1:nreps) {
     p_store[iter, i] = sample(theta_grid, 1, prob = norm_prob)
   }
   p = p_store[iter,] #sampled pressure
-  sampled_p_indexes = match(p, grid_p)
   
   #Update theta vector
   theta_prob_log = sapply(1:ncol(theta_grid), function(i) {  # Loop over columns (theta values)
     expected_m = M_Oracle[, i] ; expected_r = R_Oracle[, i]
-    res = rbind(m_observed - expected_m[sampled_p_indexes], r_observed - expected_r[sampled_p_indexes])
+    res = rbind(m_observed - expected_m[as.character(p)], r_observed - expected_r[as.character(p)])
     -0.5 * sum(diag(t(res) %*% iSigma %*% res))
   })
   unnorm_prob = exp(theta_prob_log - max(theta_prob_log))
@@ -148,8 +146,7 @@ for (iter in 1:nreps) {
   #update sigma: 
   #find residuals based on previously sampled theta and p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == sampled_theta)))
-  p_index = which(grid_p == p_val)
-  residuals_m = m_observed - M_Oracle[p_index, theta_idx] ; residuals_r = r_observed - R_Oracle[p_index, theta_idx] 
+  residuals_m = m_observed - M_Oracle[as.character(p), theta_idx] ; residuals_r = r_observed - R_Oracle[as.character(p), theta_idx] 
   res = rbind(residuals_m, residuals_r)
   S = res %*% t(res)
   # Updated the parameters for inverse wishart
