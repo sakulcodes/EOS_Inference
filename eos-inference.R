@@ -7,7 +7,7 @@ library(ggplot2)
 # true_error ~ N2(0,Sigma_true)
 # Set Sigma_true = cov(obs_data)
 
-# ----------------------observed - Riley and Miller (NICER DATASET)
+# ----------------------observed - Riley and Miller (NICER DATASET )
 #(M,R) data-set
 riley_data <- read.delim("/Users/sakul/Desktop/RESEARCH/PRL_rev/riley/ST_PST/run1/run1_nlive1000_eff0.3_noCONST_noMM_noIS_tol-1post_equal_weights.dat", sep=" ", header=FALSE)[, c(13, 9)]
 miller_data <- read.table("/Users/sakul/Desktop/RESEARCH/PRL_rev/miller/J0030_3spot_RM.txt", header=FALSE)[sample(1:10000, 12242, replace=TRUE),]
@@ -72,6 +72,7 @@ R_Oracle ; dim(R_Oracle)
 # -----> Parametric curve visualization 
 plot( R_Oracle[,1], M_Oracle[,1], xlab = "Radius", ylab = "Mass", col = "blue") ; points(R_Oracle[,2], M_Oracle[,2], col = "red")
 points(R_Oracle[,3], M_Oracle[,3], col = "green")
+points(R_Oracle[,100], M_Oracle[,100], col = "pink")
 
 
 #Check what linear combination results in the ({ai},{bi}) grid. - WORK ON THIS:
@@ -97,10 +98,10 @@ grid_p <- unique_densities ; log_prior_p = -log(length(grid_p))
 
 
 # ------------------------------Gibbs-Sampling-Setup:
-nreps = 500; nu = 2; Psi = diag(2) ; n = length(observed_M)
+nreps = 500; nu = 2; Psi = diag(2) ; n = length(m_observed)
 #storage variables:
 theta_store = matrix(0, nrow = nreps, ncol = 8) ; p_store = matrix(0, nrow = nreps, ncol = n) ; Sigma_store = array(0, dim = c(2, 2, nreps))
-#Initialize theta (take the row closest to the mean)
+#Initialize theta (from grid_theta take the row closest to the mean)
 theta_grid <- as.matrix(grid_theta)
 mean = colMeans(theta_grid) ; distances = apply(theta_grid, 1, function(row) sum((row - mean)^2))  # Calculate squared distances
 theta = theta_grid[which.min(distances), ]
@@ -127,23 +128,26 @@ for (iter in 1:nreps) {
     }, grid_p)
     unnorm_prob = exp(p_prob_log - max(p_prob_log))
     norm_prob = unnorm_prob / sum(unnorm_prob)
-    p_store[iter, i] = sample(theta_grid, 1, prob = norm_prob)
+    p_store[iter, i] = sample(grid_p, 1, prob = norm_prob)
   }
   p = p_store[iter,] #sampled pressure
-  
-  #Update theta vector
-  theta_prob_log = sapply(1:ncol(theta_grid), function(i) {  # Loop over columns (theta values)
-    expected_m = M_Oracle[, i] ; expected_r = R_Oracle[, i]
-    res = rbind(m_observed - expected_m[as.character(p)], r_observed - expected_r[as.character(p)])
+
+  #update theta:
+  theta_prob_log = mapply(function(idx) {
+    col_idx = idx
+    expected_m = M_Oracle[as.character(p), col_idx]
+    expected_r = R_Oracle[as.character(p), col_idx]
+    res = rbind(m_observed - expected_m, r_observed - expected_r)
     -0.5 * sum(diag(t(res) %*% iSigma %*% res))
-  })
+  }, seq_len(nrow(theta_grid)))
+  
   unnorm_prob = exp(theta_prob_log - max(theta_prob_log))
   norm_prob = unnorm_prob / sum(unnorm_prob)
-  sampled_row_idx = sample(1:nrow(theta_grid), 1, prob = norm_prob)
-  sampled_theta = theta_grid[sampled_row_idx, ]
+  sampled_theta = theta_grid[sample(1:nrow(grid_theta), 1, prob = norm_prob), ]
   theta_store[iter, ] = sampled_theta
   
-  #update sigma: 
+  
+  #update sigma:
   #find residuals based on previously sampled theta and p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == sampled_theta)))
   residuals_m = m_observed - M_Oracle[as.character(p), theta_idx] ; residuals_r = r_observed - R_Oracle[as.character(p), theta_idx] 
@@ -164,5 +168,4 @@ for (i in 1:8) {
 }
 
 #Do some more goodness of fit checks:
-
-
+help(sapply)
