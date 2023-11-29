@@ -7,7 +7,7 @@ library(ggplot2)
 # true_error ~ N2(0,Sigma_true)
 # Set Sigma_true = cov(obs_data)
 
-# ----------------------observed - Riley and Miller (NICER DATASET )
+# ----------------------observed - Riley and Miller (NICER DATASET)
 #(M,R) data-set
 riley_data <- read.delim("/Users/sakul/Desktop/RESEARCH/PRL_rev/riley/ST_PST/run1/run1_nlive1000_eff0.3_noCONST_noMM_noIS_tol-1post_equal_weights.dat", sep=" ", header=FALSE)[, c(13, 9)]
 miller_data <- read.table("/Users/sakul/Desktop/RESEARCH/PRL_rev/miller/J0030_3spot_RM.txt", header=FALSE)[sample(1:10000, 12242, replace=TRUE),]
@@ -18,10 +18,8 @@ plot(observed_R, observed_M, xlab = "Observed Radius", ylab = "Observed Mass", m
 obs_cov_mat <- cov(combined_data) ; obs_cov_mat#covariance matrix
 
 #generate data:
-n = length(observed_M)
-correlated_noise = mvrnorm(n, mu = c(0, 0), Sigma = obs_cov_mat)
-m_observed = observed_M + correlated_noise[,2] ; r_observed = observed_R + correlated_noise[,1]
-plot(r_observed, m_observed, main ="Generated Data")
+m_observed = observed_M ; r_observed = observed_R 
+plot(r_observed, m_observed, main ="Observed Data")
 
 #Bayesian Parametric Model 
 # (m_i, r_i)' | p_i, theta, Sigma  ~ N_2( {m(p_i, theta),r(p_i, theta)} , Sigma) 
@@ -34,11 +32,9 @@ plot(r_observed, m_observed, main ="Generated Data")
 #The FORTRAN oracle should solve (M(pi,theta), R(pi, theta)) FOR EVERY COMBINATION in the grid values for theta and p. 
 #Imagine a N by K matrix, N = no. of central densities/central pressure, K = no.of theta 
 
-#creating the oracle matrix:
+#creating a lilst of all_data to work with -> think of this as the oracle matrix
 num_files <- 100  # Assuming you have 100 files
 base_path <- "/Users/sakul/Desktop/ldmcrust/res_eos_pnm32/eft_pnm32_"
-
-# Step 1: Read Data and Create a Unique List of Central Densities
 all_data <- vector("list", num_files)
 for (i in 1:num_files) {
   file_name <- sprintf("%s%06d_ldm_nsmr.dat", base_path, i)
@@ -46,33 +42,11 @@ for (i in 1:num_files) {
   all_data[[i]] <- data_eos
 }
 
-# Step 2: Extract Unique Central Densities
-unique_densities <- unique(unlist(lapply(all_data, function(x) x[,1])))
-unique_densities <- sort(unique_densities, decreasing = TRUE)
+# -----> Parametric Solution Curve visualization for 1st, 2nd, 3rd and 100th EOS overlayed
 
-# Step 3: Build the Oracle Matrices for Mass (M_Oracle) and Radius (R_Oracle)
-M_Oracle <- R_Oracle <- matrix(NA, nrow = length(unique_densities), ncol = num_files)
-rownames(M_Oracle) <- rownames(R_Oracle) <- unique_densities
-
-for (i in 1:num_files) {
-  for (j in 1:nrow(all_data[[i]])) {
-    density <- all_data[[i]][j, 1]
-    mass <- all_data[[i]][j, 2]
-    radius <- all_data[[i]][j, 3]
-    row_index <- which(rownames(M_Oracle) == density)
-    M_Oracle[row_index, i] <- mass
-    R_Oracle[row_index, i] <- radius
-  }
-}
-
-M_Oracle ; dim(M_Oracle)
-R_Oracle ; dim(R_Oracle)
-
-
-# -----> Parametric curve visualization 
-plot( R_Oracle[,1], M_Oracle[,1], xlab = "Radius", ylab = "Mass", col = "blue") ; points(R_Oracle[,2], M_Oracle[,2], col = "red")
-points(R_Oracle[,3], M_Oracle[,3], col = "green")
-points(R_Oracle[,100], M_Oracle[,100], col = "pink")
+plot( all_data[[1]][,3], all_data[[1]][,2], xlab = "Radius", ylab = "Mass", col = "blue") ; points(all_data[[2]][,3], all_data[[2]][,2], col = "red")
+points(all_data[[3]][,3], all_data[[3]][,2], col = "green")
+points(all_data[[100]][,3], all_data[[100]][,2], col = "pink")
 
 
 #Check what linear combination results in the ({ai},{bi}) grid. - WORK ON THIS:
@@ -82,10 +56,9 @@ grid_theta <- prior ; grid_theta <- grid_theta[1:100,]
 #for pseudo purposees - taking grid for only the first 100 values as only 100 data points are loaded in the oracle matrix. 
 
 
-
 #the firs column of nsmr.dat file is the central densities
 
-#grid for central density (nc)
+#general grid for central density(nc)
 all_densities <- c()
 for (i in 1:num_files) {
   file_name <- sprintf("%s%06d_ldm_nsmr.dat", base_path, i)
@@ -93,9 +66,7 @@ for (i in 1:num_files) {
   all_densities <- c(all_densities, data_eos$V1)
 }
 unique_densities <- sort(unique(all_densities), decreasing = TRUE) ; unique_densities
-grid_p <- unique_densities ; log_prior_p = -log(length(grid_p))
-
-
+grid_p <- unique_densities
 
 # ------------------------------Gibbs-Sampling-Setup:
 nreps = 500; nu = 2; Psi = diag(2) ; n = length(m_observed)
@@ -111,7 +82,7 @@ Sigma = rinvwishart(nu, Psi)  #initialization
 
 for (iter in 1:nreps) {
   iSigma = solve(Sigma)
-  
+  iter = 1
   #Update p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == theta)))
   for (i in 1:n) {
@@ -130,8 +101,8 @@ for (iter in 1:nreps) {
     norm_prob = unnorm_prob / sum(unnorm_prob)
     p_store[iter, i] = sample(grid_p, 1, prob = norm_prob)
   }
-  p = p_store[iter,] #sampled pressure
-
+  p = p_store[iter,] #sampled pressure (maybe do sampling without replacement?) - unique(p) is 369 and dim(M_Oracle) is 381 * 100
+  
   #update theta:
   theta_prob_log = mapply(function(idx) {
     col_idx = idx
