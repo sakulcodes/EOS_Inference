@@ -49,7 +49,7 @@ points(all_data[[3]][,3], all_data[[3]][,2], col = "green")
 points(all_data[[100]][,3], all_data[[100]][,2], col = "pink")
 
 
-#Check what linear combination results in the ({ai},{bi}) grid. - WORK ON THIS:
+#check what linear combinations result in this ({ai},{bi}) grid. - WORK ON THIS:
 #grid for theta: #
 prior <- read.table("/Users/sakul/Desktop/ldmcrust/data/eft_pnm32_kfr16_par_all.dat")[, -c(5, 6)]
 grid_theta <- prior ; grid_theta <- grid_theta[1:100,]  
@@ -87,41 +87,37 @@ for (iter in 1:nreps) {
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == theta)))
   for (i in 1:n) {
     p_prob_log = mapply(function(p_val) {
-      indicator = ifelse(is.na(M_Oracle[as.character(p_val), theta_idx]), 0, 1)  # Indicator function.
-      if (indicator == 0) {
-        return(0)
-      } else {
-        expected_m = M_Oracle[as.character(p_val), theta_idx]
-        expected_r = R_Oracle[as.character(p_val), theta_idx]
-        res = c(m_observed[i] - expected_m, r_observed[i] - expected_r)
-        return(-0.5 * res %*% iSigma %*% res)
-      }
-    }, grid_p)
+      row_index = which(all_data[[theta_idx]][,1] == p_val)
+      expected_m = all_data[[theta_idx]][row_index,2]
+      expected_r = all_data[[theta_idx]][row_index,3]
+      res = c(m_observed[i] - expected_m, r_observed[i] - expected_r)
+      return(-0.5 * res %*% iSigma %*% res)
+    }, all_data[[theta_idx]][,1])
     unnorm_prob = exp(p_prob_log - max(p_prob_log))
     norm_prob = unnorm_prob / sum(unnorm_prob)
-    p_store[iter, i] = sample(grid_p, 1, prob = norm_prob)
+    p_store[iter, i] = sample(all_data[[theta_idx]][,1], 1, prob = norm_prob)
   }
-  p = p_store[iter,] #sampled pressure (maybe do sampling without replacement?) - unique(p) is 369 and dim(M_Oracle) is 381 * 100
+  p = p_store[iter,]
   
   #update theta:
   theta_prob_log = mapply(function(idx) {
-    col_idx = idx
-    expected_m = M_Oracle[as.character(p), col_idx]
-    expected_r = R_Oracle[as.character(p), col_idx]
+    row_indices = match(p, all_data[[idx]][,1])
+    expected_m = all_data[[idx]][row_indices,2]
+    expected_r = all_data[[idx]][row_indices,3]
     res = rbind(m_observed - expected_m, r_observed - expected_r)
     -0.5 * sum(diag(t(res) %*% iSigma %*% res))
-  }, seq_len(nrow(theta_grid)))
+  }, seq_len(length(all_data)))
   
   unnorm_prob = exp(theta_prob_log - max(theta_prob_log))
   norm_prob = unnorm_prob / sum(unnorm_prob)
   sampled_theta = theta_grid[sample(1:nrow(grid_theta), 1, prob = norm_prob), ]
   theta_store[iter, ] = sampled_theta
   
-  
   #update sigma:
   #find residuals based on previously sampled theta and p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == sampled_theta)))
-  residuals_m = m_observed - M_Oracle[as.character(p), theta_idx] ; residuals_r = r_observed - R_Oracle[as.character(p), theta_idx] 
+  row_indexx = match(p,all_data[[theta_idx]][,1])
+  residuals_m = m_observed - all_data[[theta_idx]][row_indexx,2] ; residuals_r = r_observed - all_data[[theta_idx]][row_indexx,3] 
   res = rbind(residuals_m, residuals_r)
   S = res %*% t(res)
   # Updated the parameters for inverse wishart
