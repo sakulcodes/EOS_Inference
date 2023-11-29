@@ -101,9 +101,12 @@ for (iter in 1:nreps) {
   
   #update theta:
   theta_prob_log = mapply(function(idx) {
-    row_indices = match(p, all_data[[idx]][,1])
+    row_indices = match(unique(p), all_data[[idx]][,1])
     expected_m = all_data[[idx]][row_indices,2]
     expected_r = all_data[[idx]][row_indices,3]
+    if(any(is.na(expected_m)) || any(is.na(expected_r))) {
+      return(-Inf)
+    }
     res = rbind(m_observed - expected_m, r_observed - expected_r)
     -0.5 * sum(diag(t(res) %*% iSigma %*% res))
   }, seq_len(length(all_data)))
@@ -116,7 +119,7 @@ for (iter in 1:nreps) {
   #update sigma:
   #find residuals based on previously sampled theta and p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == sampled_theta)))
-  row_indexx = match(p,all_data[[theta_idx]][,1])
+  row_indexx = match(unique(p),all_data[[theta_idx]][,1])
   residuals_m = m_observed - all_data[[theta_idx]][row_indexx,2] ; residuals_r = r_observed - all_data[[theta_idx]][row_indexx,3] 
   res = rbind(residuals_m, residuals_r)
   S = res %*% t(res)
