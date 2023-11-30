@@ -7,7 +7,7 @@ library(ggplot2)
 # true_error ~ N2(0,Sigma_true)
 # Set Sigma_true = cov(obs_data)
 
-# ----------------------observed - Riley and Miller (NICER DATASET)
+# ---------------------observed - Riley and Miller NICER DATASET)
 #(M,R) data-set
 riley_data <- read.delim("/Users/sakul/Desktop/RESEARCH/PRL_rev/riley/ST_PST/run1/run1_nlive1000_eff0.3_noCONST_noMM_noIS_tol-1post_equal_weights.dat", sep=" ", header=FALSE)[, c(13, 9)]
 miller_data <- read.table("/Users/sakul/Desktop/RESEARCH/PRL_rev/miller/J0030_3spot_RM.txt", header=FALSE)[sample(1:10000, 12242, replace=TRUE),]
@@ -69,7 +69,7 @@ unique_densities <- sort(unique(all_densities), decreasing = TRUE) ; unique_dens
 grid_p <- unique_densities
 
 # ------------------------------Gibbs-Sampling-Setup:
-nreps = 500; nu = 2; Psi = diag(2) ; n = length(m_observed)
+nreps = 50; nu = 2; Psi = diag(2) ; n = length(m_observed)
 #storage variables:
 theta_store = matrix(0, nrow = nreps, ncol = 8) ; p_store = matrix(0, nrow = nreps, ncol = n) ; Sigma_store = array(0, dim = c(2, 2, nreps))
 #Initialize theta (from grid_theta take the row closest to the mean)
@@ -81,6 +81,7 @@ theta = theta_grid[which.min(distances), ]
 Sigma = rinvwishart(nu, Psi)  #initialization
 
 for (iter in 1:nreps) {
+  print(iter)
   iSigma = solve(Sigma)
   #Update p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == theta)))
@@ -129,16 +130,15 @@ for (iter in 1:nreps) {
   Sigma_store[, , iter] = Sigma
 }
 
-
-# Assuming theta_store is a matrix with rows as iterations and columns as theta parameters
-num_iters <- nrow(theta_store)
-num_params <- ncol(theta_store)
-
-# Simple Trace Plot for Each Parameter in Theta
-plot(theta_store[, 1], type = "l", col = 1, ylim = range(theta_store, na.rm = TRUE),
-     xlab = "Iteration", ylab = "Theta Value", main = "Trace Plot of Theta")
-for(j in 2:num_params) {
-  lines(theta_store[, j], col = j)
-}
-legend("topright", legend = paste("Param", 1:num_params), col = 1:num_params, lty = 1)
+# # Assuming theta_store is a matrix with rows as iterations and columns as theta parameters
+# num_iters <- nrow(theta_store)
+# num_params <- ncol(theta_store)
+# 
+# # Simple Trace Plot for Each Parameter in Theta
+# plot(theta_store[, 1], type = "l", col = 1, ylim = range(theta_store, na.rm = TRUE),
+#      xlab = "Iteration", ylab = "Theta Value", main = "Trace Plot of Theta")
+# for(j in 2:num_params) {
+#   lines(theta_store[, j], col = j)
+# }
+# legend("topright", legend = paste("Param", 1:num_params), col = 1:num_params, lty = 1)
 
