@@ -33,7 +33,7 @@ plot(r_observed, m_observed, main ="Observed Data")
 #Imagine a N by K matrix, N = no. of central densities/central pressure, K = no.of theta 
 
 #creating a lilst of all_data to work with -> think of this as the oracle matrix
-num_files <- 100  # Assuming you have 100 files
+num_files <- 500 # Assuming you have 100 files
 base_path <- "/Users/sakul/Desktop/ldmcrust/res_eos_pnm32/eft_pnm32_"
 all_data <- vector("list", num_files)
 for (i in 1:num_files) {
@@ -52,7 +52,7 @@ points(all_data[[100]][,3], all_data[[100]][,2], col = "pink")
 #check what linear combinations result in this ({ai},{bi}) grid. - WORK ON THIS:
 #grid for theta: #
 prior <- read.table("/Users/sakul/Desktop/ldmcrust/data/eft_pnm32_kfr16_par_all.dat")[, -c(5, 6)]
-grid_theta <- prior ; grid_theta <- grid_theta[1:100,]  
+grid_theta <- prior ; grid_theta <- grid_theta[1:500,]  
 #for pseudo purposees - taking grid for only the first 100 values as only 100 data points are loaded in the oracle matrix. 
 
 
@@ -69,7 +69,7 @@ unique_densities <- sort(unique(all_densities), decreasing = TRUE) ; unique_dens
 grid_p <- unique_densities
 
 # ------------------------------Gibbs-Sampling-Setup:
-nreps = 50; nu = 2; Psi = diag(2) ; n = length(m_observed)
+nreps = 200; nu = 2; Psi = diag(2) ; n = length(m_observed)
 #storage variables:
 theta_store = matrix(0, nrow = nreps, ncol = 8) ; p_store = matrix(0, nrow = nreps, ncol = n) ; Sigma_store = array(0, dim = c(2, 2, nreps))
 #Initialize theta (from grid_theta take the row closest to the mean)
@@ -130,15 +130,23 @@ for (iter in 1:nreps) {
   Sigma_store[, , iter] = Sigma
 }
 
-# # Assuming theta_store is a matrix with rows as iterations and columns as theta parameters
-# num_iters <- nrow(theta_store)
-# num_params <- ncol(theta_store)
-# 
-# # Simple Trace Plot for Each Parameter in Theta
-# plot(theta_store[, 1], type = "l", col = 1, ylim = range(theta_store, na.rm = TRUE),
-#      xlab = "Iteration", ylab = "Theta Value", main = "Trace Plot of Theta")
-# for(j in 2:num_params) {
-#   lines(theta_store[, j], col = j)
-# }
-# legend("topright", legend = paste("Param", 1:num_params), col = 1:num_params, lty = 1)
+# Assuming theta_store is a matrix with rows as iterations and columns as theta parameters
+num_iters <- nrow(theta_store)
+
+#visualizing trace for ai coefficients/parameters:
+plot(theta_store[, 1], type = "l", col = 1,
+     xlab = "Iteration", ylab = "Theta Value", 
+     main = "Trace Plot of a0")
+
+plot(theta_store[, 2], type = "l", col = 1,
+     xlab = "Iteration", ylab = "Theta Value", 
+     main = "Trace Plot of a1")
+
+plot(theta_store[, 3], type = "l", col = 1,
+     xlab = "Iteration", ylab = "Theta Value", 
+     main = "Trace Plot of a2")
+
+plot(theta_store[, 4], type = "l", col = 1,
+     xlab = "Iteration", ylab = "Theta Value", 
+     main = "Trace Plot of a3")
 
