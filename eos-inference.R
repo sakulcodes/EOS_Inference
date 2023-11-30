@@ -82,7 +82,6 @@ Sigma = rinvwishart(nu, Psi)  #initialization
 
 for (iter in 1:nreps) {
   iSigma = solve(Sigma)
-  iter = 1
   #Update p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == theta)))
   for (i in 1:n) {
@@ -130,12 +129,16 @@ for (iter in 1:nreps) {
   Sigma_store[, , iter] = Sigma
 }
 
-#Trace plots for theta:
-plot(theta_store[, 1], type="l", col="blue", xlab="Iteration", ylab="Theta[1]") #Trace for first parameter of theta:
-par(mfrow=c(4,2))  #Trace for all 8 parameters
-for (i in 1:8) {
-  plot(theta_store[, i], type="l", col="blue", xlab="Iteration", ylab=paste("Theta[", i, "]", sep=""))
-}
 
-#Do some more goodness of fit checks:
-help(sapply)
+# Assuming theta_store is a matrix with rows as iterations and columns as theta parameters
+num_iters <- nrow(theta_store)
+num_params <- ncol(theta_store)
+
+# Simple Trace Plot for Each Parameter in Theta
+plot(theta_store[, 1], type = "l", col = 1, ylim = range(theta_store, na.rm = TRUE),
+     xlab = "Iteration", ylab = "Theta Value", main = "Trace Plot of Theta")
+for(j in 2:num_params) {
+  lines(theta_store[, j], col = j)
+}
+legend("topright", legend = paste("Param", 1:num_params), col = 1:num_params, lty = 1)
+
