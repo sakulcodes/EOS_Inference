@@ -7,7 +7,7 @@ library(ggplot2)
 # true_error ~ N2(0,Sigma_true)
 # Set Sigma_true = cov(obs_data)
 
-# ---------------------observed - Riley and Miller NICER DATASET)
+# ---------------------observed - Riley and Miller (NICER DATASET)
 #(M,R) data-set
 riley_data <- read.delim("/Users/sakul/Desktop/RESEARCH/PRL_rev/riley/ST_PST/run1/run1_nlive1000_eff0.3_noCONST_noMM_noIS_tol-1post_equal_weights.dat", sep=" ", header=FALSE)[, c(13, 9)]
 miller_data <- read.table("/Users/sakul/Desktop/RESEARCH/PRL_rev/miller/J0030_3spot_RM.txt", header=FALSE)[sample(1:10000, 12242, replace=TRUE),]
@@ -51,22 +51,22 @@ points(all_data[[100]][,3], all_data[[100]][,2], col = "pink")
 
 #check what linear combinations result in this ({ai},{bi}) grid. - WORK ON THIS:
 #grid for theta: #
-prior <- read.table("/Users/sakul/Desktop/ldmcrust/data/eft_pnm32_kfr16_par_all.dat")[, -c(5, 6)]
+prior <- read.table("data/eft_pnm32_kfr16_par_all.dat")[, -c(5, 6)]
 grid_theta <- prior ; grid_theta <- grid_theta[1:500,]  
 #for pseudo purposees - taking grid for only the first 100 values as only 100 data points are loaded in the oracle matrix. 
 
 
 #the firs column of nsmr.dat file is the central densities
-
-#general grid for central density(nc)
-all_densities <- c()
-for (i in 1:num_files) {
-  file_name <- sprintf("%s%06d_ldm_nsmr.dat", base_path, i)
-  data_eos <- read.table(file_name)
-  all_densities <- c(all_densities, data_eos$V1)
-}
-unique_densities <- sort(unique(all_densities), decreasing = TRUE) ; unique_densities
-grid_p <- unique_densities
+#not using this code:
+# #general grid for central density(nc)
+# all_densities <- c()
+# for (i in 1:num_files) {
+#   file_name <- sprintf("%s%06d_ldm_nsmr.dat", base_path, i)
+#   data_eos <- read.table(file_name)
+#   all_densities <- c(all_densities, data_eos$V1)
+# }
+# unique_densities <- sort(unique(all_densities), decreasing = TRUE) ; unique_densities
+# grid_p <- unique_densities
 
 # ------------------------------Gibbs-Sampling-Setup:
 nreps = 200; nu = 2; Psi = diag(2) ; n = length(m_observed)
@@ -83,6 +83,7 @@ Sigma = rinvwishart(nu, Psi)  #initialization
 for (iter in 1:nreps) {
   print(iter)
   iSigma = solve(Sigma)
+  iter = 2
   #Update p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == theta)))
   for (i in 1:n) {
@@ -102,11 +103,10 @@ for (iter in 1:nreps) {
   #update theta:
   theta_prob_log = mapply(function(idx) {
     row_indices = match(unique(p), all_data[[idx]][,1])
-    expected_m = all_data[[idx]][row_indices,2]
-    expected_r = all_data[[idx]][row_indices,3]
-    if(any(is.na(expected_m)) || any(is.na(expected_r))) {
-      return(-Inf)
-    }
+    valid_idx = !is.na(row_indices)
+    expected_m = all_data[[idx]][row_indices[valid_idx],2]
+    expected_r = all_data[[idx]][row_indices[valid_idx],3]
+    print(idx)
     res = rbind(m_observed - expected_m, r_observed - expected_r)
     -0.5 * sum(diag(t(res) %*% iSigma %*% res))
   }, seq_len(length(all_data)))
@@ -115,12 +115,15 @@ for (iter in 1:nreps) {
   norm_prob = unnorm_prob / sum(unnorm_prob)
   sampled_theta = theta_grid[sample(1:nrow(grid_theta), 1, prob = norm_prob), ]
   theta_store[iter, ] = sampled_theta
+  theta = sampled_theta
   
   #update sigma:
   #find residuals based on previously sampled theta and p
   theta_idx = which(apply(theta_grid, 1, function(row) all(row == sampled_theta)))
   row_indexx = match(unique(p),all_data[[theta_idx]][,1])
-  residuals_m = m_observed - all_data[[theta_idx]][row_indexx,2] ; residuals_r = r_observed - all_data[[theta_idx]][row_indexx,3] 
+  valid_idx = !is.na(row_indexx)
+  residuals_m = m_observed - all_data[[theta_idx]][row_indexx[valid_idx], 2]
+  residuals_r = r_observed - all_data[[theta_idx]][row_indexx[valid_idx], 3]
   res = rbind(residuals_m, residuals_r)
   S = res %*% t(res)
   # Updated the parameters for inverse wishart
@@ -131,7 +134,7 @@ for (iter in 1:nreps) {
 }
 
 # Assuming theta_store is a matrix with rows as iterations and columns as theta parameters
-num_iters <- nrow(theta_store)
+num_iters <- 2
 
 #visualizing trace for ai coefficients/parameters:
 plot(theta_store[, 1], type = "l", col = 1,
@@ -149,4 +152,5 @@ plot(theta_store[, 3], type = "l", col = 1,
 plot(theta_store[, 4], type = "l", col = 1,
      xlab = "Iteration", ylab = "Theta Value", 
      main = "Trace Plot of a3")
+
 
